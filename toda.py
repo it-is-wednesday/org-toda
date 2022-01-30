@@ -1,9 +1,9 @@
-import re
 from dataclasses import dataclass, field
 from typing import Iterable, List, Optional
 import argparse
 
 import caldav
+import icalendar.cal as ical
 
 
 @dataclass
@@ -13,6 +13,7 @@ class Task:
     parent_uid: Optional[str] = None
     description: Optional[str] = None
     subtasks: List["Task"] = field(default_factory=list)
+
 
 def find_subtask(task: Task, id_to_find: str):
     "Recursively find a task with id_to_find in task's subtasks"
@@ -64,22 +65,18 @@ def mitigate_orphans(tasks: Iterable[Task]):
     return toplevel
 
 
-PATTERN_SUMMARY = re.compile(r"SUMMARY:(.*)\r\n")
-PATTERN_DESC = re.compile(r"DESCRIPTION:(.*)\r\n")
-PATTERN_PARENT = re.compile(r"RELATED-TO(?:;RELTYPE=PARENT)?:(.*)\r\n")
-PATTERN_UID = re.compile(r"UID:(.*)\r\n")
-
-
 def task_details(task: caldav.Todo) -> Task:
-    data = task.data
+    vtodo: ical.Todo = ical.Calendar.from_ical(task.data).walk("VTODO")[0]
 
-    def search_in_task_data(p: re.Pattern) -> Optional[str]:
-        if m := p.search(data):
-            return m.group(1)
+    def s(key):
+        if value := vtodo.get(key):
+            # I'm not sure why it's necessary but the icalendar library won't
+            # process hebrew otherwise
+            return value.encode().decode()
 
-    title = search_in_task_data(PATTERN_SUMMARY)
-    desc = search_in_task_data(PATTERN_DESC)
-    uid = search_in_task_data(PATTERN_UID)
+    title = s("SUMMARY")
+    uid = s("UID")
+    desc = s("DESCRIPTION")
 
     if not title:
         raise ValueError("Task with no title??")
@@ -90,8 +87,8 @@ def task_details(task: caldav.Todo) -> Task:
     return Task(
         title=title,
         uid=uid,
-        description=desc if title != desc else None,
-        parent_uid=search_in_task_data(PATTERN_PARENT),
+        description=f"{desc}\n" if title != desc else None,
+        parent_uid=s("RELATED-TO"),
     )
 
 
@@ -114,7 +111,7 @@ def cli_args():
     return parser.parse_args()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     args = cli_args()
     client = caldav.DAVClient(
         url=args.url,
