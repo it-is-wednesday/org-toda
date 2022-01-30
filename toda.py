@@ -1,6 +1,6 @@
 import re
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import Iterable, List, Optional
 import argparse
 
 import caldav
@@ -14,17 +14,18 @@ class Task:
     description: Optional[str] = None
     subtasks: List["Task"] = field(default_factory=list)
 
-    def find_subtask(self, id_to_find: str):
-        for st in self.subtasks:
-            if st.uid == id_to_find:
-                return st
+def find_subtask(task: Task, id_to_find: str):
+    "Recursively find a task with id_to_find in task's subtasks"
+    for st in task.subtasks:
+        if st.uid == id_to_find:
+            return st
 
-            if nested := st.find_subtask(id_to_find):
-                return nested
-        return None
+        if nested := find_subtask(st, id_to_find):
+            return nested
+    return None
 
 
-def mitigate_orphans(tasks: List[Task]):
+def mitigate_orphans(tasks: Iterable[Task]):
     """
     Returns a new tasks list where each task with a parent is placed as a
     subtask of the parent task
@@ -53,7 +54,7 @@ def mitigate_orphans(tasks: List[Task]):
                     subtasks.remove(task)
                 else:
                     assert task.parent_uid  # just for the typechecker
-                    if nested_parent := root.find_subtask(task.parent_uid):
+                    if nested_parent := find_subtask(root, task.parent_uid):
                         nested_parent.subtasks.append(task)
                         subtasks.remove(task)
 
@@ -125,4 +126,7 @@ if __name__ == '__main__':
     tasks = mitigate_orphans(tasks)
 
     with open(args.target_file, "w") as f:
-        f.write("\n".join(map(task_to_org_recur, tasks)))
+        for calendar in client.principal().calendars():
+            tasks = mitigate_orphans(map(task_details, calendar.todos()))
+            f.write("\n".join(map(task_to_org_recur, tasks)))
+            break
