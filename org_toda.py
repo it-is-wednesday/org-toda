@@ -1,3 +1,9 @@
+"""
+Materialize Caldav todos into org-mode files and vice versa
+"""
+
+__version__ = "0.1"
+
 from dataclasses import dataclass, field
 from typing import Iterable, List, Optional
 import argparse
