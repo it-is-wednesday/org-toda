@@ -109,7 +109,7 @@ def task_details(task: caldav.Todo) -> Task:
     return Task(
         title=title,
         uid=uid,
-        description=f"{desc}\n" if title != desc else None,
+        description=f"{desc}\n" if (title != desc and desc is not None) else None,
         parent_uid=s("RELATED-TO"),
     )
 
