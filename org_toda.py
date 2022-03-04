@@ -21,6 +21,18 @@ class Task:
     subtasks: List["Task"] = field(default_factory=list)
 
 
+@dataclass
+class Calendar:
+    """
+    Not an actual calendar with timed event. "Calendar" in this context means a
+    group of tasks, these groups are just hosted in Nextcloud as Caldav
+    calendars for some reason
+    """
+
+    title: str
+    tasks: List[Task]
+
+
 def find_subtask(task: Task, id_to_find: str):
     "Recursively find a task with id_to_find in task's subtasks"
     for st in task.subtasks:
@@ -32,7 +44,7 @@ def find_subtask(task: Task, id_to_find: str):
     return None
 
 
-def mitigate_orphans(tasks: Iterable[Task]):
+def mitigate_orphans(tasks: Iterable[Task]) -> List[Task]:
     """
     Returns a new tasks list where each task with a parent is placed as a
     subtask of the parent task
@@ -72,6 +84,10 @@ def mitigate_orphans(tasks: Iterable[Task]):
 
 
 def task_details(task: caldav.Todo) -> Task:
+    """
+    Convert a Caldav todo obejct into out own definition of Task.
+    Raises ValueError if title or uid are missind in task.
+    """
     vtodo: ical.Todo = ical.Calendar.from_ical(task.data).walk("VTODO")[0]
 
     def s(key):
@@ -103,9 +119,35 @@ def make_headline(task: Task, depth: int):
     return f"{'*' * depth} {task.title}{desc}"
 
 
-def task_to_org_recur(task: Task, depth=1):
-    subs = [task_to_org_recur(t, depth + 1) for t in task.subtasks]
+def task_to_org(task: Task, depth=1):
+    """
+    Convert task to an org-mode entry (headline and body)
+    """
+    subs = [task_to_org(t, depth + 1) for t in task.subtasks]
     return "\n".join([make_headline(task, depth), *subs])
+
+
+def fetch_task_calendars(client: caldav.DAVClient) -> Iterable[Calendar]:
+    """
+    Fetch all tasks from remote via client, grouped as calendars.
+    Skips calendars with no title.
+    """
+    for calendar in client.principal().calendars():
+        if (title := calendar.name) is None:
+            print(f"Calendar {calendar} has no title, skipping")
+            continue
+
+        # convert all todos in current calendar into our Task record, skipping
+        # todos with missing fields
+        tasks_in_cal = []
+        for task in calendar.todos():
+            try:
+                tasks_in_cal.append(task_details(task))
+            except ValueError as e:
+                print(e)
+                continue
+
+        yield Calendar(title, tasks_in_cal)
 
 
 def cli_args():
@@ -117,19 +159,19 @@ def cli_args():
     return parser.parse_args()
 
 
-if __name__ == "__main__":
+def main():
     args = cli_args()
+
     client = caldav.DAVClient(
         url=args.url,
         username=args.user,
         password=args.password,
     )
 
-    tasks = [task_details(t) for t in client.principal().calendars()[0].todos()]
-    tasks = mitigate_orphans(tasks)
-
     with open(args.target_file, "w") as f:
-        for calendar in client.principal().calendars():
-            tasks = mitigate_orphans(map(task_details, calendar.todos()))
-            f.write("\n".join(map(task_to_org_recur, tasks)))
-            break
+        for cal in fetch_task_calendars(client):
+            f.write("\n".join(map(task_to_org, cal.tasks)))
+
+
+if __name__ == "__main__":
+    main()
