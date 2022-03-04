@@ -119,12 +119,17 @@ def make_headline(task: Task, depth: int):
     return f"{'*' * depth} {task.title}{desc}"
 
 
-def task_to_org(task: Task, depth=1):
+def task_to_org(task: Task, depth=2):
     """
     Convert task to an org-mode entry (headline and body)
     """
     subs = [task_to_org(t, depth + 1) for t in task.subtasks]
     return "\n".join([make_headline(task, depth), *subs])
+
+
+def calendar_to_org(cal: Calendar):
+    tasks = "\n".join(map(task_to_org, mitigate_orphans(cal.tasks)))
+    return f"* {cal.title}\n{tasks}\n"
 
 
 def fetch_task_calendars(client: caldav.DAVClient) -> Iterable[Calendar]:
@@ -170,7 +175,8 @@ def main():
 
     with open(args.target_file, "w") as f:
         for cal in fetch_task_calendars(client):
-            f.write("\n".join(map(task_to_org, cal.tasks)))
+            print(f"Writing calendar {cal.title}")
+            f.write(calendar_to_org(cal))
 
 
 if __name__ == "__main__":
