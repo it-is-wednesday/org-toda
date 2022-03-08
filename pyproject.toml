@@ -12,3 +12,15 @@ dependencies = ["caldav >= 0.8.2", "icalendar >= 4.0.9"]
 
 [project.urls]
 Home = "https://github.com/it-is-wednesday/org-toda"
+
+[[tool.mypy.overrides]]
+module = 'caldav.*'
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = 'orgparse.*'
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = 'icalendar.*'
+ignore_missing_imports = true
