@@ -34,7 +34,7 @@ def calendar_to_org(cal: Calendar):
 
 
 def cli_args():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(prog="org-toda")
     parser.add_argument("url")
     parser.add_argument("user")
     parser.add_argument("password")
