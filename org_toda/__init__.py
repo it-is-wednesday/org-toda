@@ -9,8 +9,8 @@ import argparse
 import caldav
 
 
-from common import Calendar, Task
-from fetch import fetch_task_calendars
+from .common import Calendar, Task
+from .fetch import fetch_task_calendars
 
 
 def make_headline(task: Task, depth: int):

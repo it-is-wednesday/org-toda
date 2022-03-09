@@ -4,7 +4,7 @@ from typing import Iterable, List, Optional
 import caldav
 import icalendar.cal as ical
 
-from common import Calendar, Task
+from .common import Calendar, Task
 
 
 @dataclass
