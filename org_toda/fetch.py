@@ -8,7 +8,7 @@ from .common import Calendar, Task
 
 
 @dataclass
-class TempTask:
+class _TempTask:
     """
     Pretty much same as the Task class, but includes annoying metadata such as
     UID and parent UID. We only use these to figure out which taskes are
@@ -19,7 +19,7 @@ class TempTask:
     uid: str
     parent_uid: Optional[str] = None
     description: Optional[str] = None
-    subtasks: List["TempTask"] = field(default_factory=list)
+    subtasks: List["_TempTask"] = field(default_factory=list)
 
 
 def _temp_task_to_normal_task(temptask):
@@ -30,7 +30,7 @@ def _temp_task_to_normal_task(temptask):
     )
 
 
-def _find_subtask(task: TempTask, id_to_find: str) -> Optional[TempTask]:
+def _find_subtask(task: _TempTask, id_to_find: str) -> Optional[_TempTask]:
     "Recursively find a task with id_to_find in task's subtasks"
     for st in task.subtasks:
         if st.uid == id_to_find:
@@ -41,7 +41,7 @@ def _find_subtask(task: TempTask, id_to_find: str) -> Optional[TempTask]:
     return None
 
 
-def _mitigate_orphans(tasks: Iterable[TempTask]) -> List[TempTask]:
+def _mitigate_orphans(tasks: Iterable[_TempTask]) -> List[_TempTask]:
     """
     Returns a new tasks list where each task with a parent is placed as a
     subtask of the parent task
@@ -55,7 +55,7 @@ def _mitigate_orphans(tasks: Iterable[TempTask]) -> List[TempTask]:
         else:
             midlevel.append(task)
 
-    def mitigate_inplace(roots: List[TempTask], subtasks: List[TempTask]):
+    def mitigate_inplace(roots: List[_TempTask], subtasks: List[_TempTask]):
         """
         attempt to find each task's parent. look for the parent in every item in
         roots, and every root's subtasks
@@ -80,7 +80,7 @@ def _mitigate_orphans(tasks: Iterable[TempTask]) -> List[TempTask]:
     return toplevel
 
 
-def _task_details(task: caldav.Todo) -> TempTask:
+def _task_details(task: caldav.Todo) -> _TempTask:
     """
     Convert a Caldav todo obejct into out own definition of Task.
     Raises ValueError if title or uid are missind in task.
@@ -103,7 +103,7 @@ def _task_details(task: caldav.Todo) -> TempTask:
     if not uid:
         raise ValueError("Task with no uid??")
 
-    return TempTask(
+    return _TempTask(
         title=title,
         uid=uid,
         description=f"{desc}\n" if (title != desc and desc is not None) else None,
