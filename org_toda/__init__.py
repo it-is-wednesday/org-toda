@@ -3,34 +3,15 @@ Materialize Caldav todos into org-mode files and vice versa
 """
 __version__ = "0.1"
 
-from typing import Iterable
 import argparse
 
 import caldav
+import orgparse
+from deepdiff.diff import DeepDiff
 
-
-from .common import Calendar, Task
 from .fetch import fetch_task_calendars
-
-
-def make_headline(task: Task, depth: int):
-    desc = "\n" + task.description if task.description else ""
-    return f"{'*' * depth} {task.title}{desc}"
-
-
-def task_to_org(task: Task, depth=2):
-    """
-    Convert task to an org-mode entry (headline and body)
-    """
-    subs = [task_to_org(t, depth + 1) for t in task.subtasks]
-    return "\n".join([make_headline(task, depth), *subs])
-
-
-def calendar_to_org(cal: Calendar):
-    tasks = "\n".join(map(task_to_org, cal.tasks))
-    return f"* {cal.title}\n{tasks}\n"
-
-
+from .from_org import org_to_calendars
+from .to_org import calendar_to_org
 
 
 def cli_args():
@@ -38,7 +19,7 @@ def cli_args():
     parser.add_argument("url")
     parser.add_argument("user")
     parser.add_argument("password")
-    parser.add_argument("target_file")
+    parser.add_argument("org_file")
     return parser.parse_args()
 
 
@@ -51,8 +32,13 @@ def main():
         password=args.password,
     )
 
-    with open(args.target_file, "w") as f:
-        for cal in fetch_task_calendars(client):
+    remote_tasks = list(fetch_task_calendars(client))
+    local_tasks = list(org_to_calendars(orgparse.load(args.org_file)))
+
+    diff = DeepDiff(local_tasks, remote_tasks, ignore_order=True)
+
+    with open(args.org_file, "w") as f:
+        for cal in remote_tasks:
             print(f"Writing calendar {cal.title}")
             f.write(calendar_to_org(cal))
 

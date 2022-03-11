@@ -18,6 +18,5 @@ class Calendar:
     group of tasks, these groups are just hosted in Nextcloud as Caldav
     calendars for some reason
     """
-
     title: str
     tasks: List[Task]

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from dataclasses import dataclass, field
 from typing import Iterable, List, Optional
+
 import caldav
 import icalendar.cal as ical
 
@@ -8,17 +9,14 @@ from .common import Calendar, Task
 
 
 @dataclass
-class _TempTask:
+class _TempTask(Task):
     """
-    Pretty much same as the Task class, but includes annoying metadata such as
-    UID and parent UID. We only use these to figure out which taskes are
-    subtasks of which tasks. We will get rid of these when getting out of this module
+    Includes annoying task metadata: UID and parent UID. We only use these to
+    figure out which taskes are subtasks of which tasks. We will get rid of
+    these when getting out of this module
     """
-
-    title: str
-    uid: str
+    uid: str = field(kw_only=True)
     parent_uid: Optional[str] = None
-    description: Optional[str] = None
     subtasks: List["_TempTask"] = field(default_factory=list)
 
 
